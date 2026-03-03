@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "name": "ai-automations-dashboard",
+  "env": {
+    "VERCEL_API_TOKEN": "@vercel-api-token",
+    "TELEGRAM_BOT_TOKEN": "@telegram-bot-token",
+    "OPENAI_API_KEY": "@openai-api-key",
+    "KV_URL": "@kv-url",
+    "KV_REST_API_TOKEN": "@kv-rest-api-token",
+    "BLOB_READ_WRITE_TOKEN": "@blob-token"
+  },
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/briefing",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/organize",
+      "schedule": "0 */6 * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/webhook",
+      "destination": "/api/webhook.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ]
+}
