@@ -16,18 +16,13 @@ export default function SlidesPage() {
 
   async function generateSlides() {
     setLoading(true);
-    try {
-      const response = await fetch('/api/slides', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markdown, theme })
+    // Simulate slide generation for static export
+    setTimeout(() => {
+      setResult({ 
+        error: 'Slide generation requires a backend. This is a demo version for static hosting.'
       });
-      const data = await response.json();
-      setResult(data);
-    } catch (e) {
-      setResult({ error: 'Failed to generate' });
-    }
-    setLoading(false);
+      setLoading(false);
+    }, 1000);
   }
 
   return (

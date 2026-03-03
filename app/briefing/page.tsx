@@ -7,25 +7,49 @@ interface BriefingData {
   sections: Array<{ title: string; items: string[] }>;
 }
 
+// Mock briefing data for static export
+const mockBriefingData: BriefingData = {
+  generatedAt: new Date().toISOString(),
+  sections: [
+    {
+      title: '📰 Top Headlines',
+      items: [
+        'AI adoption accelerates across enterprise sectors',
+        'New breakthrough in quantum computing announced',
+        'Global markets respond to tech earnings reports'
+      ]
+    },
+    {
+      title: '💼 Business',
+      items: [
+        'Startup funding rebounds in Q1 2025',
+        'Remote work policies continue to evolve',
+        'Sustainability initiatives gain corporate traction'
+      ]
+    },
+    {
+      title: '🔬 Technology',
+      items: [
+        'Edge AI chips reach new performance milestones',
+        'Open source LLMs challenge proprietary models',
+        'Cybersecurity threats increase sophistication'
+      ]
+    }
+  ]
+};
+
 export default function BriefingPage() {
   const [data, setData] = useState<BriefingData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  async function fetchData() {
-    try {
-      const response = await fetch('/api/briefing');
-      const result = await response.json();
-      if (result.success) {
-        setData(result.data);
-      }
-    } finally {
+    // Simulate loading and use mock data for static export
+    const timer = setTimeout(() => {
+      setData(mockBriefingData);
       setLoading(false);
-    }
-  }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">

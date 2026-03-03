@@ -8,27 +8,25 @@ interface CryptoData {
   solana: { usd: number; usd_24h_change: number };
 }
 
+// Mock crypto data for static export
+const mockCryptoData: CryptoData = {
+  bitcoin: { usd: 67432.15, usd_24h_change: 2.34 },
+  ethereum: { usd: 3521.78, usd_24h_change: -1.12 },
+  solana: { usd: 145.23, usd_24h_change: 5.67 }
+};
+
 export default function CryptoPage() {
   const [data, setData] = useState<CryptoData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  async function fetchData() {
-    try {
-      const response = await fetch('/api/crypto');
-      const result = await response.json();
-      if (result.success) {
-        setData(result.data);
-      }
-    } finally {
+    // Simulate loading and use mock data for static export
+    const timer = setTimeout(() => {
+      setData(mockCryptoData);
       setLoading(false);
-    }
-  }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const coins = [
     { key: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', color: 'text-orange-400' },
@@ -66,7 +64,7 @@ export default function CryptoPage() {
         )}
         
         <p className="mt-8 text-sm text-gray-500">
-          Updates every 60 seconds • Powered by CoinGecko
+          Demo data for static export • Real-time updates require backend
         </p>
       </div>
     </div>
