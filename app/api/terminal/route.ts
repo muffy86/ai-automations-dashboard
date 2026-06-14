@@ -2,70 +2,92 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const OPEN_TERMINAL_URL = process.env.OPEN_TERMINAL_URL ?? 'http://localhost:8000';
 const OPEN_TERMINAL_API_KEY = process.env.OPEN_TERMINAL_API_KEY ?? '';
-// Set TERMINAL_ACCESS_TOKEN in .env.local to restrict who can call this route.
-// If unset, the endpoint is open (suitable only for local dev behind auth middleware).
 const TERMINAL_ACCESS_TOKEN = process.env.TERMINAL_ACCESS_TOKEN ?? '';
 
 function isAuthorized(req: NextRequest): boolean {
-  if (!TERMINAL_ACCESS_TOKEN) return true;
   const auth = req.headers.get('authorization') ?? '';
   return auth === `Bearer ${TERMINAL_ACCESS_TOKEN}`;
 }
 
-const otHeaders = () => ({
-  Authorization: `Bearer ${OPEN_TERMINAL_API_KEY}`,
-  'Content-Type': 'application/json',
-});
-
 export async function POST(req: NextRequest) {
+  if (!TERMINAL_ACCESS_TOKEN) {
+    return NextResponse.json(
+      { error: 'Terminal not configured. Set TERMINAL_ACCESS_TOKEN in environment.' },
+      { status: 503 }
+    );
+  }
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const body = await req.json();
-    const { command } = body;
-
-    if (!command || typeof command !== 'string') {
+    const { command } = body as { command?: string };
+    if (!command) {
       return NextResponse.json({ error: 'command is required' }, { status: 400 });
     }
 
-    const res = await fetch(`${OPEN_TERMINAL_URL}/execute`, {
+    const upstream = await fetch(`${OPEN_TERMINAL_URL}/execute`, {
       method: 'POST',
-      headers: otHeaders(),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(OPEN_TERMINAL_API_KEY ? { Authorization: `Bearer ${OPEN_TERMINAL_API_KEY}` } : {}),
+      },
       body: JSON.stringify({ command }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json({ error: text }, { status: res.status });
+    let result: unknown;
+    try {
+      result = await upstream.json();
+    } catch {
+      result = { error: 'Invalid JSON from upstream' };
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    if (!upstream.ok) {
+      return NextResponse.json(result, { status: upstream.status });
+    }
+    return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
 
 export async function GET(req: NextRequest) {
+  if (!TERMINAL_ACCESS_TOKEN) {
+    return NextResponse.json(
+      { error: 'Terminal not configured. Set TERMINAL_ACCESS_TOKEN in environment.' },
+      { status: 503 }
+    );
+  }
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  try {
-    const res = await fetch(`${OPEN_TERMINAL_URL}/files/list?path=/workspace`, {
-      headers: { Authorization: `Bearer ${OPEN_TERMINAL_API_KEY}` },
-      cache: 'no-store',
-    });
+  const { searchParams } = new URL(req.url);
+  const path = searchParams.get('path') ?? '/workspace';
 
-    if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json({ error: text }, { status: res.status });
+  try {
+    const upstream = await fetch(
+      `${OPEN_TERMINAL_URL}/files/list?path=${encodeURIComponent(path)}`,
+      {
+        cache: 'no-store',
+        headers: OPEN_TERMINAL_API_KEY
+          ? { Authorization: `Bearer ${OPEN_TERMINAL_API_KEY}` }
+          : {},
+      }
+    );
+
+    let result: unknown;
+    try {
+      result = await upstream.json();
+    } catch {
+      result = { error: 'Invalid JSON from upstream' };
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    if (!upstream.ok) {
+      return NextResponse.json(result, { status: upstream.status });
+    }
+    return NextResponse.json(result);
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
