@@ -74,7 +74,7 @@ export default function TerminalPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-green-400 font-mono p-6 flex flex-col">
+    <div className="h-screen bg-black text-green-400 font-mono p-6 flex flex-col">
       <div className="flex items-center gap-3 mb-6">
         <div className="w-3 h-3 rounded-full bg-red-500" />
         <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -82,7 +82,7 @@ export default function TerminalPage() {
         <h1 className="text-sm font-bold text-green-300 ml-2">OpenTerminal — Remote Shell</h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto mb-4 space-y-2 max-h-[calc(100vh-200px)]">
+      <div className="flex-1 overflow-y-auto mb-4 space-y-2">
         {history.length === 0 && (
           <div className="text-green-800 text-sm">
             Connected to OpenTerminal. Type a command and press Enter.
