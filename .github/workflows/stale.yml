@@ -1,0 +1,6 @@
+on:
+  schedule: [{ cron: "0 3 * * *" }]
+  workflow_dispatch:
+jobs:
+  stale:
+    uses: Muffy1/infra-automation/.github/workflows/stale.yml@main
