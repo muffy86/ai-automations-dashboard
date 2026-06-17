@@ -36,7 +36,6 @@ export default function NucleusPage() {
   const [lastResult, setLastResult] = useState<string | null>(null)
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected')
   const wsRef = useRef<WebSocket | null>(null)
-  const feedRef = useRef<HTMLDivElement>(null)
 
   const base = process.env.NEXT_PUBLIC_NUCLEUS_URL ?? 'http://localhost:8080'
 
@@ -63,22 +62,37 @@ export default function NucleusPage() {
     const healthTimer = setInterval(checkHealth, 15000)
     const agentTimer = setInterval(loadAgents, 10000)
     const taskTimer = setInterval(loadTasks, 3000)
-    return () => { clearInterval(healthTimer); clearInterval(agentTimer); clearInterval(taskTimer) }
+    return () => {
+      clearInterval(healthTimer)
+      clearInterval(agentTimer)
+      clearInterval(taskTimer)
+    }
   }, [])
 
   useEffect(() => {
     const wsUrl = base.replace(/^http/, 'ws') + '/ws'
+    let cancelled = false
+
     const connect = () => {
+      if (cancelled) return
       try {
         const ws = new WebSocket(wsUrl)
         ws.onopen = () => setWsStatus('connected')
-        ws.onclose = () => { setWsStatus('disconnected'); setTimeout(connect, 3000) }
+        ws.onclose = () => {
+          setWsStatus('disconnected')
+          // Only reconnect if the component is still mounted
+          if (!cancelled) setTimeout(connect, 3000)
+        }
         ws.onerror = () => ws.close()
         wsRef.current = ws
       } catch {}
     }
+
     connect()
-    return () => wsRef.current?.close()
+    return () => {
+      cancelled = true
+      wsRef.current?.close()
+    }
   }, [base])
 
   const sendIntent = async () => {
@@ -88,7 +102,7 @@ export default function NucleusPage() {
       const res = await client.intent(input)
       setLastResult(JSON.stringify(res, null, 2))
       setInput('')
-    } catch (e) {
+    } catch {
       setLastResult('Error: could not reach Nucleus')
     } finally {
       setSending(false)
@@ -106,11 +120,16 @@ export default function NucleusPage() {
           <p className="text-zinc-500 text-sm">Agent OS Mission Control</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-xs px-2 py-1 rounded-full ${wsStatus === 'connected' ? 'bg-green-900 text-green-400' : 'bg-zinc-800 text-zinc-500'}`}>
+          <span className={`text-xs px-2 py-1 rounded-full ${
+            wsStatus === 'connected' ? 'bg-green-900 text-green-400' : 'bg-zinc-800 text-zinc-500'
+          }`}>
             WS {wsStatus}
           </span>
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${health === 'ok' ? 'bg-green-500 animate-pulse' : health === 'checking' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+            <div className={`w-2.5 h-2.5 rounded-full ${
+              health === 'ok' ? 'bg-green-500 animate-pulse' :
+              health === 'checking' ? 'bg-yellow-500' : 'bg-red-500'
+            }`} />
             <span className="text-xs text-zinc-400">{health}</span>
           </div>
         </div>
@@ -121,7 +140,7 @@ export default function NucleusPage() {
         <div className="flex gap-2">
           <input
             className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-3 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-            placeholder="Send intent to Nucleus... e.g. 'check system health' or 'build a hello world script'"
+            placeholder="Send intent to Nucleus... e.g. 'check system health'"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && sendIntent()}
@@ -143,7 +162,9 @@ export default function NucleusPage() {
 
       {/* Agent Grid */}
       <div className="mb-6">
-        <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Agents ({allAgentNames.length})</h2>
+        <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
+          Agents ({allAgentNames.length})
+        </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {allAgentNames.map(name => {
             const live = agents.find(a => a.name === name)
@@ -151,7 +172,9 @@ export default function NucleusPage() {
             return (
               <div key={name} className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <div className={`w-1.5 h-1.5 rounded-full ${live ? (healthy ? 'bg-green-500' : 'bg-yellow-500') : 'bg-zinc-600'}`} />
+                  <div className={`w-1.5 h-1.5 rounded-full ${
+                    live ? (healthy ? 'bg-green-500' : 'bg-yellow-500') : 'bg-zinc-600'
+                  }`} />
                   <span className="text-xs font-semibold text-white truncate">{name}</span>
                 </div>
                 <span className="text-xs text-zinc-600">{AGENT_ROLES[name]}</span>
@@ -166,7 +189,7 @@ export default function NucleusPage() {
         <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
           Live Tasks ({tasks.length})
         </h2>
-        <div ref={feedRef} className="space-y-1 max-h-96 overflow-y-auto">
+        <div className="space-y-1 max-h-96 overflow-y-auto">
           {tasks.length === 0 ? (
             <p className="text-zinc-600 text-sm py-4">No tasks yet — send an intent above.</p>
           ) : (
@@ -180,9 +203,10 @@ export default function NucleusPage() {
                   'bg-zinc-800 text-zinc-400'
                 }`}>{t.status}</span>
                 <span className="text-zinc-500 flex-1 truncate">
-                  {(t.result as Record<string,unknown>)?.routed_to as string ?? JSON.stringify(t.inputs).slice(0, 60)}
+                  {(t.result as Record<string, unknown>)?.routed_to as string ?? JSON.stringify(t.inputs).slice(0, 60)}
                 </span>
-                <span className="text-zinc-700 flex-shrink-0">{new Date(t.created_at).toLocaleTimeString()}</span>
+                {/* Use ISO slice for deterministic SSR/client rendering — avoids hydration mismatch */}
+                <span className="text-zinc-700 flex-shrink-0">{t.created_at.slice(11, 19)}</span>
               </div>
             ))
           )}
