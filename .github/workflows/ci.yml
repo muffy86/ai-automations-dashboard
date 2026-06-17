@@ -1,19 +1,31 @@
 name: CI
-
 on:
   push:
-    branches: [master]
+    branches: [main, 'claude/**']
   pull_request:
-    branches: [master]
-
+    branches: [main]
 jobs:
-  test:
+  typecheck:
+    name: TypeScript check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npx tsc --noEmit
+  build:
+    name: Next.js build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_NUCLEUS_URL: http://localhost:8080

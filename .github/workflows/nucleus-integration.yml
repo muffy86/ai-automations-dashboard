@@ -1,0 +1,18 @@
+name: Nucleus Integration
+on:
+  workflow_dispatch:
+    inputs:
+      nucleus_url:
+        description: Nucleus backend URL to test against
+        required: true
+        default: http://localhost:8080
+jobs:
+  ping:
+    name: Health check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Nucleus health
+        run: |
+          STATUS=$(curl -sf ${{ github.event.inputs.nucleus_url }}/health | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','unknown'))" 2>/dev/null || echo unreachable)
+          echo "Nucleus status: $STATUS"
+          [ "$STATUS" = "ok" ] || [ "$STATUS" = "healthy" ] || (echo 'Nucleus not healthy' && exit 1)
