@@ -1,0 +1,7 @@
+reviews:
+  auto_review:
+    enabled: true
+    drafts: true
+  review_status: false
+chat:
+  auto_reply: true
