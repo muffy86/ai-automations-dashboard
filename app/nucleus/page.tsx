@@ -70,18 +70,22 @@ export default function NucleusPage() {
   }, [])
 
   useEffect(() => {
+    let active = true
+    let timerId: ReturnType<typeof setTimeout> | null = null
     const wsUrl = base.replace(/^http/, 'ws') + '/ws'
-    let cancelled = false
 
     const connect = () => {
-      if (cancelled) return
+      if (!active) return
       try {
         const ws = new WebSocket(wsUrl)
-        ws.onopen = () => setWsStatus('connected')
+        ws.onopen = () => {
+          if (active) setWsStatus('connected')
+        }
         ws.onclose = () => {
-          setWsStatus('disconnected')
-          // Only reconnect if the component is still mounted
-          if (!cancelled) setTimeout(connect, 3000)
+          if (active) {
+            setWsStatus('disconnected')
+            timerId = setTimeout(connect, 3000)
+          }
         }
         ws.onerror = () => ws.close()
         wsRef.current = ws
@@ -90,7 +94,8 @@ export default function NucleusPage() {
 
     connect()
     return () => {
-      cancelled = true
+      active = false
+      if (timerId) clearTimeout(timerId)
       wsRef.current?.close()
     }
   }, [base])
@@ -205,7 +210,7 @@ export default function NucleusPage() {
                 <span className="text-zinc-500 flex-1 truncate">
                   {(t.result as Record<string, unknown>)?.routed_to as string ?? JSON.stringify(t.inputs).slice(0, 60)}
                 </span>
-                {/* Use ISO slice for deterministic SSR/client rendering — avoids hydration mismatch */}
+                {/* ISO slice is deterministic on server and client — no hydration mismatch */}
                 <span className="text-zinc-700 flex-shrink-0">{t.created_at.slice(11, 19)}</span>
               </div>
             ))
