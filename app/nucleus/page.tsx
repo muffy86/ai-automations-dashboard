@@ -1,8 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { NucleusClient, NucleusTask, NucleusAgent } from '@/lib/nucleus'
-
-const client = new NucleusClient()
+import { nucleus, NucleusTask, NucleusAgent } from '@/lib/nucleus'
 
 const AGENT_ROLES: Record<string, string> = {
   orchestrator: 'Router',
@@ -27,6 +25,10 @@ const STATUS_COLORS: Record<string, string> = {
   queued: 'bg-zinc-500',
 }
 
+// Compile-time constant — safe to declare at module level
+const WS_BASE = (process.env.NEXT_PUBLIC_NUCLEUS_URL ?? 'http://localhost:8080')
+  .replace(/^http/, 'ws')
+
 export default function NucleusPage() {
   const [health, setHealth] = useState<string>('checking')
   const [agents, setAgents] = useState<NucleusAgent[]>([])
@@ -37,22 +39,20 @@ export default function NucleusPage() {
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected')
   const wsRef = useRef<WebSocket | null>(null)
 
-  const base = process.env.NEXT_PUBLIC_NUCLEUS_URL ?? 'http://localhost:8080'
-
   useEffect(() => {
     const checkHealth = async () => {
-      const h = await client.health()
+      const h = await nucleus.health()
       setHealth(h.status)
     }
     const loadAgents = async () => {
       try {
-        const res = await client.agents()
+        const res = await nucleus.agents()
         setAgents(res.agents ?? [])
       } catch {}
     }
     const loadTasks = async () => {
       try {
-        const res = await client.tasks()
+        const res = await nucleus.tasks()
         setTasks(Array.isArray(res) ? res : [])
       } catch {}
     }
@@ -72,15 +72,13 @@ export default function NucleusPage() {
   useEffect(() => {
     let active = true
     let timerId: ReturnType<typeof setTimeout> | null = null
-    const wsUrl = base.replace(/^http/, 'ws') + '/ws'
+    const wsUrl = WS_BASE + '/ws'
 
     const connect = () => {
       if (!active) return
       try {
         const ws = new WebSocket(wsUrl)
-        ws.onopen = () => {
-          if (active) setWsStatus('connected')
-        }
+        ws.onopen = () => { if (active) setWsStatus('connected') }
         ws.onclose = () => {
           if (active) {
             setWsStatus('disconnected')
@@ -96,15 +94,18 @@ export default function NucleusPage() {
     return () => {
       active = false
       if (timerId) clearTimeout(timerId)
+      // Null the handler before closing so the close event does not
+      // schedule another reconnect via the onclose callback
+      if (wsRef.current) wsRef.current.onclose = null
       wsRef.current?.close()
     }
-  }, [base])
+  }, [])
 
   const sendIntent = async () => {
     if (!input.trim()) return
     setSending(true)
     try {
-      const res = await client.intent(input)
+      const res = await nucleus.intent(input)
       setLastResult(JSON.stringify(res, null, 2))
       setInput('')
     } catch {
@@ -173,13 +174,17 @@ export default function NucleusPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
           {allAgentNames.map(name => {
             const live = agents.find(a => a.name === name)
-            const healthy = live?.status === 'healthy'
+            const dotColor = !live
+              ? 'bg-zinc-600'
+              : live.status === 'healthy'
+              ? 'bg-green-500'
+              : live.status === 'error' || live.status === 'failed'
+              ? 'bg-red-500'
+              : 'bg-yellow-500'
             return (
               <div key={name} className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    live ? (healthy ? 'bg-green-500' : 'bg-yellow-500') : 'bg-zinc-600'
-                  }`} />
+                  <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
                   <span className="text-xs font-semibold text-white truncate">{name}</span>
                 </div>
                 <span className="text-xs text-zinc-600">{AGENT_ROLES[name]}</span>
@@ -208,7 +213,7 @@ export default function NucleusPage() {
                   'bg-zinc-800 text-zinc-400'
                 }`}>{t.status}</span>
                 <span className="text-zinc-500 flex-1 truncate">
-                  {(t.result as Record<string, unknown>)?.routed_to as string ?? JSON.stringify(t.inputs).slice(0, 60)}
+                  {t.result?.routed_to as string ?? JSON.stringify(t.inputs).slice(0, 60)}
                 </span>
                 {/* ISO slice is deterministic on server and client — no hydration mismatch */}
                 <span className="text-zinc-700 flex-shrink-0">{t.created_at.slice(11, 19)}</span>

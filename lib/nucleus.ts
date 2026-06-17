@@ -24,26 +24,31 @@ export class NucleusClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     })
+    if (!r.ok) throw new Error(`/intent returned ${r.status}`)
     return r.json()
   }
 
   async tasks(): Promise<NucleusTask[]> {
     const r = await fetch(`${this.base}/tasks`)
+    if (!r.ok) throw new Error(`/tasks returned ${r.status}`)
     return r.json()
   }
 
   async task(id: string): Promise<NucleusTask> {
     const r = await fetch(`${this.base}/tasks/${id}`)
+    if (!r.ok) throw new Error(`/tasks/${id} returned ${r.status}`)
     return r.json()
   }
 
   async runTask(id: string) {
     const r = await fetch(`${this.base}/tasks/${id}/run`, { method: 'POST' })
+    if (!r.ok) throw new Error(`/tasks/${id}/run returned ${r.status}`)
     return r.json()
   }
 
   async agents(): Promise<{ agents: NucleusAgent[] }> {
     const r = await fetch(`${this.base}/agents`)
+    if (!r.ok) throw new Error(`/agents returned ${r.status}`)
     return r.json()
   }
 
